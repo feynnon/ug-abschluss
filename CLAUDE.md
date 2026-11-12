@@ -24,6 +24,11 @@ Nicht festgeschrieben werden:
 Bevor du etwas Neues ins Repo schreibst, frag dich: Kann Claude das beim nächsten Mal selbst herausfinden?
 Wenn ja, schreib nur den Prozessschritt auf, nicht die Lösung.
 
+## Skills sind Checklisten
+Skills listen, was mindestens bedacht und geprüft sein muss – sie sind nicht die Grenze dessen, was zu tun
+ist. Jeder Skill beginnt mit dem Hinweis: Daten selbst ansehen, alle Belege und Verträge lesen, mitdenken,
+nicht blind abhaken. Neue Erkenntnisse werden kurze Checklistenpunkte (mit Testfall), keine Anleitungen.
+
 ## Weitere Regeln
 - Das Repo ist öffentlich gedacht: **keine Firmendaten im Repo.** Profile, Evals mit echten Zahlen und
   Belege liegen in `daten/` (Symlink auf privaten Ordner, gitignored) bzw. `$UG_DATEN`.

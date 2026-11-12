@@ -67,6 +67,19 @@ def eval2(out: Path) -> dict:
                 ok = False
             checks.append((f"{bereich}.{k}", soll, ist, ok))
 
+    # Formularfelder (optional): out/felder.yaml gegen felder_soll.yaml, volle Euro, Toleranz 1
+    felder_soll = (lade_yaml(GT_DIR / "felder_soll.yaml") or {}).get("felder", {})
+    felder_ist = lade_yaml(out / "felder.yaml") or {}
+    # nur bewerten, wenn die Testumgebung eine Vorlage mit den Feldschlüsseln hatte
+    if felder_soll and felder_ist and (out.parent / "vorjahr/felder_vorjahr.yaml").exists():
+        for k, soll in felder_soll.items():
+            ist = felder_ist.get(k)
+            try:
+                ok_f = ist is not None and abs(float(ist) - float(soll)) <= 1
+            except (TypeError, ValueError):
+                ok_f = False
+            checks.append((f"feld {k}", soll, ist, ok_f))
+
     ok = sum(c[3] for c in checks)
     return {
         "score": f"{ok}/{len(checks)} Werte stimmen mit dem Steuerberater überein",

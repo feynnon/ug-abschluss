@@ -15,7 +15,8 @@ Quellen: Gesellschafterliste, Transparenzregister-Auszug.
 ## 3. Steuerliche Erfassung  ← wichtigste Quelle: Fragebogen zur steuerlichen Erfassung
 - Finanzamt + Steuernummer, Beginn der Tätigkeit
 - Angegebene Tätigkeit
-- Umsatzsteuer: Kleinunternehmer / Regelbesteuerung / kein Unternehmer; Voranmeldungen ja/nein
+- Umsatzsteuer: Kleinunternehmer / Regelbesteuerung / kein Unternehmer; Voranmeldungen (Rhythmus,
+  Dauerfristverlängerung), Soll-/Ist-Versteuerung, innergemeinschaftliche Umsätze
 - Vorauszahlungen KSt/GewSt (aktueller Vorauszahlungsbescheid)
 - Steuerberater mit Vollmacht / Empfangsvollmacht (wohin schickt das Finanzamt Post?)
 - Bankverbindung für Erstattungen / SEPA-Mandat beim Finanzamt
@@ -26,7 +27,7 @@ KSt-Verlustvortrag, Gewerbeverlust, steuerliches Einlagekonto, Zinsvortrag, Rüc
 Quellen: Feststellungsbescheide des Vorjahres.
 
 ## 5. Geschäft und wiederkehrende Sachverhalte
-Was die Firma tut, typische Buchungen mit Konten (Kontenrahmen), Verträge mit laufender Wirkung
+Was die Firma tut, Erlösquellen, Personal/Lohn (wer macht ihn?), typische Buchungen mit Konten (Kontenrahmen), Verträge mit laufender Wirkung
 (Darlehen inkl. Zinsmethode, Mietverträge, Beteiligungen mit Anteil und Anschaffungskosten).
 
 ## 6. Besonderheiten Steuer
@@ -38,7 +39,7 @@ Portale (ELSTER, Unternehmensregister, Steuerberater-Portal).
 
 ## 8. Pflichten und Fristen
 Erklärungen (KSt, GewSt, USt?, E-Bilanz), Offenlegung/Hinterlegung, Transparenzregister, IHK,
-Gewerbeanmeldung. Mit Frist für das nächste Jahr.
+Gewerbeanmeldung. Fristen als Regel mit Quelle und Stand (vor Nutzung neu prüfen).
 
 ## 9. Historie
 Je Jahr: wer hat den Abschluss gemacht, Ergebnis, Besonderheiten, offene Punkte.

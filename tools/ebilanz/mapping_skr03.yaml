@@ -1,0 +1,55 @@
+# Zuordnung SKR03-Konto -> Position der HGB-Taxonomie (Kerntaxonomie de-gaap-ci, ohne Versionsdatum).
+# Generisch, ohne Firmendaten. Firmenspezifische Abweichungen in einer zweiten Mapping-Datei
+# (z. B. daten/ebilanz/mapping.yaml), die build.py nach dieser lädt; spätere Dateien gewinnen.
+#
+# Schlüssel: Kontonummer ohne führende Nullen oder Bereich "von-bis". Exakte Nummer schlägt Bereich.
+# Vorzeichen kommt nicht aus dieser Datei: build.py nimmt Soll/Haben aus dem Journal und das
+# balance-Attribut (debit/credit) der Taxonomie-Position.
+#
+# Stand: geprüft gegen Taxonomie 6.8 und 6.9 (Positionen existieren in beiden).
+# Nur Konten, die eine kleine Holding typischerweise bebucht. Vor Echtversand gegen die
+# E-Bilanz-Datei des Steuerberaters (Vorjahr) abgleichen und bei Bedarf ergänzen.
+# "ohne_position": Konten ohne Bilanz-/GuV-Position (Eröffnung, Abschluss) - werden ignoriert.
+
+ohne_position: ["9000-9009"]
+
+konten:
+  # --- Aktiva ---
+  "500":  {position: bs.ass.fixAss.fin.sharesInAffil.corporations, name: Anteile an verbundenen Unternehmen (Anlagevermögen)}
+  "510":  {position: bs.ass.fixAss.fin.particip.other, name: Beteiligungen}
+  "517":  {position: bs.ass.fixAss.fin.particip.corporations, name: Andere Beteiligungen an Kapitalgesellschaften}
+  "518":  {position: bs.ass.fixAss.fin.particip.partnerships, name: Andere Beteiligungen an Personengesellschaften}
+  "525":  {position: bs.ass.fixAss.fin.securities, name: Wertpapiere des Anlagevermögens}
+  "1000-1099": {position: bs.ass.currAss.cashEquiv.cash, name: Kasse}
+  "1200-1299": {position: bs.ass.currAss.cashEquiv.bank, name: Bank}
+
+  # --- Passiva: Eigenkapital ---
+  "800":  {position: bs.eqLiab.equity.subscribed.corp, name: Gezeichnetes Kapital}
+  "860":  {position: bs.eqLiab.equity.retainedEarnings, name: Gewinnvortrag vor Verwendung}
+  "868":  {position: bs.eqLiab.equity.retainedEarnings, name: Verlustvortrag vor Verwendung}
+
+  # --- Passiva: Rückstellungen ---
+  "955":  {position: bs.eqLiab.accruals.tax.gewst, name: Gewerbesteuerrückstellung}
+  "956":  {position: bs.eqLiab.accruals.tax.kst, name: Körperschaftsteuerrückstellung}
+  "970":  {position: bs.eqLiab.accruals.other, name: Sonstige Rückstellungen}
+  "977":  {position: bs.eqLiab.accruals.other, name: Rückstellungen für Abschluss- und Prüfungskosten}
+
+  # --- Passiva: Verbindlichkeiten ---
+  "730":  {position: bs.eqLiab.liab.shareholders.gmbh, name: Verbindlichkeiten gegenüber Gesellschaftern}
+  "740":  {position: bs.eqLiab.liab.shareholders.gmbh, name: Verbindlichkeiten gegenüber Gesellschaftern - Restlaufzeit 1 bis 5 Jahre}
+  "750":  {position: bs.eqLiab.liab.shareholders.gmbh, name: Verbindlichkeiten gegenüber Gesellschaftern - Restlaufzeit größer 5 Jahre}
+  "1600-1699": {position: bs.eqLiab.liab.trade.genOther, name: Verbindlichkeiten aus Lieferungen und Leistungen}
+  "1700-1799": {position: bs.eqLiab.liab.other.other, name: Sonstige Verbindlichkeiten}
+
+  # --- GuV (Gesamtkostenverfahren) ---
+  "2020": {position: is.netIncome.regular.operatingTC.otherCost.miscellaneous, name: Periodenfremde Aufwendungen}
+  "2100": {position: is.netIncome.regular.fin.netInterest.expenses.regularInterest.other, name: Zinsen und ähnliche Aufwendungen}
+  # 2114: Bezeichnung wie im Firmenprofil verwendet; gegen aktuellen DATEV-Kontenrahmen prüfen.
+  # Bei Beteiligung > 25 % firmenspezifisch auf ...PartnersLoans.participationOver25pt umhängen.
+  "2114": {position: is.netIncome.regular.fin.netInterest.expenses.regularInterest.PartnersLoans.misc, name: Zinsen für Gesellschafterdarlehen}
+  "2650": {position: is.netIncome.regular.fin.netInterest.income.deposits.banks, name: Sonstige Zinsen und ähnliche Erträge}
+  "4900": {position: is.netIncome.regular.operatingTC.otherCost.otherOrdinary, name: Sonstige betriebliche Aufwendungen}
+  "4950": {position: is.netIncome.regular.operatingTC.otherCost.legalConsulting, name: Rechts- und Beratungskosten}
+  "4955": {position: is.netIncome.regular.operatingTC.otherCost.legalConsulting, name: Buchführungskosten}
+  "4957": {position: is.netIncome.regular.operatingTC.otherCost.legalConsulting, name: Abschluss- und Prüfungskosten}
+  "4970": {position: is.netIncome.regular.operatingTC.otherCost.otherOrdinary, name: Nebenkosten des Geldverkehrs}

@@ -3,7 +3,7 @@
 Der Agent sieht nur, was er auch im Echtbetrieb hätte: Kontoauszüge, Belege,
 Vorjahreswerte, Profil, Skill. Keine Ergebnisse des Steuerberaters aus dem Testjahr.
 
-  python3 evals/fixture.py <ziel> --modus eval1|eval2
+  python3 evals/fixture.py <ziel> --modus eval1|eval2 [--fall 2025|2024|2026_verkauf]
 """
 import argparse
 import os
@@ -21,19 +21,25 @@ QUELLEN_2025 = yaml.safe_load((DATEN / "evals/2025/quellen.yaml").read_text())
 UPLOAD = UG / QUELLEN_2025["upload_ordner"]
 
 
-def build_2026_verkauf(ziel: Path) -> None:
-    """Synthetischer Testfall Anteilsverkauf 2026: echte Belege 2026 + ausgedachter Verkauf."""
-    fall = DATEN / "evals/2026_verkauf"
+def build_aus_quellen(ziel: Path, fall: str, modus: str) -> None:
+    """Testfall aus daten/evals/<fall>/: quellen.yaml (bank/belege/vorjahr, Pfade relativ zur Ablage)
+    plus optional eigene Unterordner bank/, belege/, vorjahr/ (synthetische Dateien) im Fallordner."""
+    fall_dir = DATEN / "evals" / fall
+    quellen = yaml.safe_load((fall_dir / "quellen.yaml").read_text()) or {}
     for sub in ("bank", "belege", "vorjahr", "out"):
         (ziel / sub).mkdir(parents=True, exist_ok=True)
     for sub in ("bank", "belege", "vorjahr"):
-        for f in (fall / sub).iterdir():
+        dateien = sorted((fall_dir / sub).iterdir()) if (fall_dir / sub).is_dir() else []
+        dateien += [UG / rel for rel in quellen.get(sub) or []]
+        for f in dateien:
+            if (ziel / sub / f.name).exists():
+                raise SystemExit(f"Doppelter Dateiname in {sub}/: {f.name}")
             shutil.copy2(f, ziel / sub / f.name)
-    echte = [UG / p for p in yaml.safe_load((fall / "quellen.yaml").read_text())["belege"]]
-    for f in echte:
-        shutil.copy2(f, ziel / "belege" / f.name)
-    shutil.copy2(fall / "antworten.md", ziel / "antworten.md")
-    shutil.copy2(next((DATEN / "profil").glob("[!_]*.md")), ziel / "profil.md")
+    if modus == "eval2" and (fall_dir / "antworten.md").exists():
+        shutil.copy2(fall_dir / "antworten.md", ziel / "antworten.md")
+    snapshot = fall_dir / "profil_snapshot.md"  # kein Wissen aus dem Prüfjahr
+    profil = snapshot if snapshot.exists() else next((DATEN / "profil").glob("[!_]*.md"))
+    shutil.copy2(profil, ziel / "profil.md")
     shutil.copy2(REPO / "profil/_vorlage.md", ziel / "profil_vorlage.md")
     shutil.copytree(REPO / ".claude", ziel / ".claude")
 
@@ -71,16 +77,29 @@ def build(ziel: Path, modus: str) -> None:
     shutil.copytree(REPO / ".claude", ziel / ".claude")
 
 
+def felder_vorjahr(ziel: Path, fall: str) -> None:
+    """Formularfelder des Vorjahres (aus dessen Steuerberater-Erklärung) als Vorlage bereitstellen."""
+    try:
+        vj = str(int(fall[:4]) - 1)
+    except ValueError:
+        return
+    quelle = DATEN / "evals" / vj / "felder_soll.yaml"
+    if quelle.exists():
+        (ziel / "vorjahr").mkdir(parents=True, exist_ok=True)
+        shutil.copy2(quelle, ziel / "vorjahr/felder_vorjahr.yaml")
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("ziel", type=Path)
     ap.add_argument("--modus", choices=["eval1", "eval2"], required=True)
-    ap.add_argument("--fall", default="2025", choices=["2025", "2026_verkauf"])
+    ap.add_argument("--fall", default="2025", help="Ordnername unter daten/evals/")
     a = ap.parse_args()
     if a.ziel.exists():
         shutil.rmtree(a.ziel)
-    if a.fall == "2026_verkauf":
-        build_2026_verkauf(a.ziel)
-    else:
+    if a.fall == "2025":
         build(a.ziel, a.modus)
+    else:
+        build_aus_quellen(a.ziel, a.fall, a.modus)
+    felder_vorjahr(a.ziel, a.fall)
     print(f"Testumgebung {a.modus}: {a.ziel}")
