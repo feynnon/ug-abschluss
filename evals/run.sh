@@ -17,7 +17,8 @@ fi
 cd "$LAUF"
 claude -p "$AUFGABE" \
   --allowedTools "Read" "Write" "Edit" "Glob" "Grep" "Skill" "Bash(pdftotext:*)" "Bash(python3:*)" "Bash(ls:*)" \
-  --output-format json > "$LAUF/claude_output.json" 2> "$LAUF/claude_stderr.log" || true
+  --output-format stream-json --verbose > "$LAUF/transkript.jsonl" 2> "$LAUF/claude_stderr.log" || true
 
+python3 "$REPO/evals/audit.py" "$LAUF/transkript.jsonl" "$LAUF" | tee "$LAUF/audit.txt" || echo "AUDIT FEHLGESCHLAGEN – Ergebnis ungültig"
 python3 "$REPO/evals/grade.py" "$LAUF" --modus "$MODUS" | tee "$LAUF/grade.json" || true
 echo "Lauf: $LAUF"
