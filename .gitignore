@@ -1,0 +1,5 @@
+evals/runs/
+__pycache__/
+.env
+daten
+evals/last_*.log
