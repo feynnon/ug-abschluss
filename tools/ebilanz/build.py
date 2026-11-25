@@ -41,7 +41,9 @@ NS = {
 }
 # Gesamtkostenverfahren, Handels-/Einheitsbilanz einer Kapitalgesellschaft
 ERLAUBTE_ERGEBNISART = {"", "neutral", "GKV"}
-AUSGESCHLOSSEN = {"steuerlich", "handelsrechtlich", "Einreichung an Finanzverwaltung"}
+# Einheitsbilanz wird als steuerliche Bilanz übermittelt: "nur handelsrechtlich unzulässig" bleibt Mussfeld
+# (ERiC verlangt diese Felder, Prüfung 19.11.2026).
+AUSGESCHLOSSEN = {"steuerlich", "Einreichung an Finanzverwaltung"}
 MUSS = {"Mussfeld", "Summenmussfeld", "Mussfeld, Kontennachweis erwünscht"}
 
 
@@ -145,9 +147,9 @@ class Tax:
         r = self.ref(name)
         return (
             r.get("fiscalRequirement", [""])[0] in MUSS
-            and "true" in r.get("legalFormKSt", [])
+            # Rechtsform-Kennzeichen (legalForm*) prüft ERiC bei Mussfeldern nicht (Prüfung 19.11.2026)
             and not AUSGESCHLOSSEN & set(r.get("notPermittedFor", []))
-            and set(r.get("typeOperatingResult", [""])) <= ERLAUBTE_ERGEBNISART
+            # auch typeOperatingResult (GKV/UKV) wertet ERiC bei Mussfeldern nicht aus
         )
 
     def summiere(self, rolle: str, werte: dict[str, Decimal]) -> dict[str, Decimal]:
@@ -182,6 +184,29 @@ class Tax:
                     fehler(f"{n} hat eigenen Wert und Unterpositionen mit Werten – Mapping auf Blattebene legen")
             wert(n)
         return erg
+
+    def gueltig(self, name, beginn, ende) -> bool:
+        """ERiC-Regel: ungültig, wenn WJ-Beginn vor ValidSince oder Bilanzstichtag nach ValidThrough liegt."""
+        r = self.ref(name)
+        seit, bis = r.get("ValidSince", [""])[0], r.get("ValidThrough", [""])[0]
+        return (not seit or beginn.isoformat() >= seit) and (not bis or ende.isoformat() <= bis)
+
+    def dimensional(self) -> set[str]:
+        """Konzepte, die nur mit Dimensionen berichtet werden (Primärelemente von Hypercubes)."""
+        if not hasattr(self, "_dim"):
+            dm = self.m.relationshipSet(self.X.domainMember)
+            offen = [r.fromModelObject for r in self.m.relationshipSet(self.X.all).modelRelationships]
+            self._dim = set()
+            while offen:
+                k = offen.pop()
+                if k.qname.localName not in self._dim:
+                    self._dim.add(k.qname.localName)
+                    offen += [r.toModelObject for r in dm.fromModelObject(k)]
+        return self._dim
+
+    def rollen(self) -> list[str]:
+        return sorted({r.linkrole.removeprefix(ROLE) for r in
+                       self.m.relationshipSet(self.X.parentChild).modelRelationships if r.linkrole.startswith(ROLE)})
 
     def praesentation(self, rolle: str) -> list[str]:
         rs = self.m.relationshipSet(self.X.parentChild, ROLE + rolle)
@@ -236,6 +261,8 @@ class Instanz:
         self.kontext("D", start=beginn, end=ende)
         u = etree.SubElement(self.root, f"{{{NS['xbrli']}}}unit", id="EUR")
         etree.SubElement(u, f"{{{NS['xbrli']}}}measure").text = "iso4217:EUR"
+        u = etree.SubElement(self.root, f"{{{NS['xbrli']}}}unit", id="PURE")
+        etree.SubElement(u, f"{{{NS['xbrli']}}}measure").text = "xbrli:pure"
         self.gefuellt: set[tuple] = set()
 
     def kontext(self, cid, instant=None, start=None, end=None, member=None):
@@ -277,8 +304,10 @@ class Instanz:
     def gaap_wert(self, name, wert):
         k = self.t.c[name]
         ctx = "I" if k.periodType == "instant" else "D"
+        if k.isTuple:
+            return
         if (name, ctx) not in self.gefuellt:
-            self.fakt(self.gaap, name, wert, ctx, monetaer=True)
+            self.fakt(self.gaap, name, wert, ctx, monetaer=k.isMonetary)
 
 
 def gcd_teil(x: Instanz, st: dict, jahr: dict, berichtsteile: dict, status: str):
@@ -292,6 +321,8 @@ def gcd_teil(x: Instanz, st: dict, jahr: dict, berichtsteile: dict, status: str)
 
     T = lambda n, p=None: x.tupel(g, n, p)  # noqa: E731
     F("genInfo.doc.id.generationDate", dt.date.today().isoformat())
+    t = T("genInfo.report.id.reportType")
+    F("genInfo.report.id.reportType.reportType.JA", None, t).attrib.pop(f"{{{NS['xsi']}}}nil")
     t = T("genInfo.report.id.reportStatus")
     F("genInfo.report.id.reportStatus.reportStatus." + status, {"E": "endgültig", "V": "vorläufig"}[status], t)
     t = T("genInfo.report.id.revisionStatus")
@@ -299,10 +330,15 @@ def gcd_teil(x: Instanz, st: dict, jahr: dict, berichtsteile: dict, status: str)
     t = T("genInfo.report.id.reportElement")
     for k, text in berichtsteile.items():
         F("genInfo.report.id.reportElement.reportElements." + k, text, t)
+    for k in ("SGE", "SGEP", "KKE"):  # Mussfelder ohne Inhalt bei Einheitsbilanz einer KapG
+        if k not in berichtsteile:
+            F("genInfo.report.id.reportElement.reportElements." + k, None, t)
     if "genInfo.report.id.reportElement.reportElements.transmissionNotYetPossible" in namen:  # ab 6.9
         F("genInfo.report.id.reportElement.reportElements.transmissionNotYetPossible")
     t = T("genInfo.report.id.statementType")
     F("genInfo.report.id.statementType.statementType.E", "Jahresabschluss", t)
+    t = T("genInfo.report.id.statementType.tax")
+    F("genInfo.report.id.statementType.tax.statementTypeTax.GHB", None, t)
     F("genInfo.report.id.incomeStatementendswithBalProfit", "false")
     t = T("genInfo.report.id.accountingStandard")
     F("genInfo.report.id.accountingStandard.accountingStandard.HAOE", "deutsches Handelsrecht (sog. Einheitsbilanz)", t)
@@ -340,18 +376,26 @@ def gcd_teil(x: Instanz, st: dict, jahr: dict, berichtsteile: dict, status: str)
     t = T("genInfo.company.id.incomeClassification")
     F("genInfo.company.id.incomeClassification." + st.get("einkunftsart", "trade"), None, t).attrib.pop(
         f"{{{NS['xsi']}}}nil")
+    F("genInfo.company.id.optionKStGs1a", None)
     t = T("genInfo.company.id.entityWithTaxablePurposeBusiness")
     F("genInfo.company.id.entityWithTaxablePurposeBusiness.normal", None, t)
     t = T("genInfo.company.id.domesticBranchOfForeignCompany")
     F("genInfo.company.id.domesticBranchOfForeignCompany.other", None, t)
-    t = T("genInfo.company.id.shareholder")
-    for n in ("name", "id", "taxnumber", "taxid", "WID"):
+    t = T("genInfo.company.id.shareholder")  # Reihenfolge laut Inhaltsmodell der Taxonomie
+    F("genInfo.company.id.shareholder.name", None, t)
+    F("genInfo.company.id.shareholder.id", None, t)
+    t2 = T("genInfo.company.id.shareholder.group", t)
+    F("genInfo.company.id.shareholder.group.genPartnerFullyLiable", None, t2)
+    F("genInfo.company.id.shareholder.currentnumber", None, t).set("unitRef", "PURE")
+    for n in ("taxnumber", "taxid", "WID"):
         F("genInfo.company.id.shareholder." + n, None, t)
     t2 = T("genInfo.company.id.shareholder.legalStatus", t)
     F("genInfo.company.id.shareholder.legalStatus.legalStatus.NPP", None, t2)
     t2 = T("genInfo.company.id.shareholder.ShareDivideKey", t)
     F("genInfo.company.id.shareholder.ShareDivideKey.numerator", None, t2)
     F("genInfo.company.id.shareholder.ShareDivideKey.denominator", None, t2)
+    F("genInfo.company.id.shareholder.SpecialBalanceRequired", None, t)
+    F("genInfo.company.id.shareholder.extensionRequired", None, t)
 
 
 # ---------------------------------------------------------------- Ablauf
@@ -460,19 +504,38 @@ def main(argv=None):
 
     # 6. Instanz schreiben
     x = Instanz(tax, str(st["steuernummer_elster"]), jahr["fiscalYearBegin"], jahr["fiscalYearEnd"])
-    teile = {"B": "Bilanz", "GuV": "GuV", "KS": "Kontensalden zu einer oder mehreren Positionen"}
+    # BVV muss werthaltig sein, sobald eine GuV berichtet wird (ERiC-Regel)
+    teile = {"B": "Bilanz", "GuV": "GuV", "BVV": "Betriebsvermögensvergleich",
+             "KS": "Kontensalden zu einer oder mehreren Positionen"}
     if spiegel:
         teile["BAL"] = "Anlagenspiegel (brutto)"
-    leer = ["BVV", "EB", "EV", "STU"] + ([] if spiegel else ["BAL"])
+    leer = ["EB", "EV", "STU"] + ([] if spiegel else ["BAL"])
     gcd_teil(x, st, jahr, {**teile, **{k: None for k in leer}}, a.status)
 
     for p, v in sorted(bil.items()):
         x.gaap_wert(p, v)
     for p, v in sorted(guv.items()):
         x.gaap_wert(p, v)
-    for rolle in ("balanceSheet", "incomeStatement"):
+    # Betriebsvermögensvergleich: EK Ende − EK Anfang + Entnahmen − Einlagen = Jahresergebnis.
+    # Einlagen = Bewegungen (ohne Eröffnung) auf gezeichnetem Kapital/Kapitalrücklage; Ausschüttungen nicht umgesetzt.
+    ek_ende = bil.get("bs.eqLiab.equity", Decimal(0)) - bil.get("bs.ass.deficitNotCoveredByCapital", Decimal(0))
+    einlagen = Decimal(0)
+    for pos, konto, _, _ in nachweis:
+        if pos.startswith(("bs.eqLiab.equity.subscribed", "bs.eqLiab.equity.capRes")):
+            einlagen += sum((b if sh == "H" else -b for sh, b, g in bewegungen[konto] if not ist_eb(g)), Decimal(0))
+        elif pos.startswith("bs.eqLiab.equity.retainedEarnings") and any(not ist_eb(g) for _, _, g in bewegungen[konto]):
+            fehler(f"Konto {konto}: Buchung auf Gewinnvortrag (Ausschüttung?) – im BVV nicht umgesetzt")
+    ergebnis = guv["is.netIncome"]
+    ek_anfang = ek_ende - ergebnis - einlagen
+    for p, v in (("BVV.profitLoss", ergebnis), ("BVV.profitLoss.assetsCurrentYear", ek_ende),
+                 ("BVV.profitLoss.assetsPreviousYear", ek_anfang), ("BVV.profitLoss.assetsPreviousYear.assets", ek_anfang),
+                 ("BVV.profitLoss.contribution", einlagen), ("BVV.profitLoss.withdrawalDistrib", Decimal(0))):
+        x.gaap_wert(p, v)
+    # ERiC verlangt die Mussfelder aller Berichtsteile (auch fpl, BVV, Ergebnisverwendung), leer als NIL
+    for rolle in tax.rollen():
         for p in tax.praesentation(rolle):
-            if tax.mussfeld_kapg(p):
+            if (tax.mussfeld_kapg(p) and p not in tax.dimensional()
+                    and tax.gueltig(p, jahr["fiscalYearBegin"], jahr["fiscalYearEnd"])):
                 x.gaap_wert(p, None)
 
     muss_spiegel = [p for p in prim if tax.mussfeld_kapg(p)]
