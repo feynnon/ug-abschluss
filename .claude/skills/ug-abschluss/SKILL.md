@@ -93,8 +93,10 @@ kst: {gk_z11_jahresergebnis, steuerfrei_8b2, hinzurechnung_8b3, einkommen, zve, 
 - `out/felder.yaml`: Formularfelder als `"<Formular> Z.<Zeile> <Bezeichnung>": Wert` (volle Euro) – genau die
   Schlüssel aus `vorjahr/felder_vorjahr.yaml`, plus Felder, die im Vorjahr leer waren und jetzt Werte haben.
   Zeilennummern neuer Felder im aktuellen Formular nachschlagen, nicht raten; wenn nicht möglich, als offen markieren.
-- E-Bilanz (`tools/ebilanz/`) und Steuer-XML: Vorlage Vorjahresdateien; Formulare/Taxonomie aktuell
-  recherchieren; mit ERiC prüfen, bis keine Fehler mehr kommen.
+- E-Bilanz (`tools/ebilanz/`, ELSTER-Rahmen mit `tools/ebilanz/elster.py`) und Steuer-XML (KSt, GewSt):
+  Vorlage Vorjahresdateien in `daten/elster/<jahr>/`, sonst ERiC-Beispiele; Feldnummern aus der
+  ERiC-Jahresdokumentation, nicht raten. Mit `tools/elster/eric.py pruefen` prüfen, bis keine Fehler mehr
+  kommen, dann `senden --test` (Testsystem). Verträge mit Gesellschaftern (z. B. Darlehen) gehören in die Anlage WA.
 
 ## 7. Prüfung, Beschluss, Versand
 - [ ] `python3 tools/report/build.py <arbeitsordner>` → `out/pruefbericht.pdf` und
